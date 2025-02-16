@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Route - ChargeRoute</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=geometry"></script>
+    <script>
+        function initMap() {
+            const map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 7,
+                center: { lat: {{ routes[0].route[0].lat }}, lng: {{ routes[0].route[0].lng }} }
+            });
+
+            const colors = ["#4285F4", "#FF0000", "#00FF00", "#FFA500"];  // Colors for different routes
+            const routes = {{ routes | tojson }};
+
+            routes.forEach((route, index) => {
+                const routePath = new google.maps.Polyline({
+                    path: route.route.map(point => ({ lat: point.lat, lng: point.lng })),
+                    geodesic: true,
+                    strokeColor: colors[index % colors.length],
+                    strokeOpacity: 1.0,
+                    strokeWeight: 4,
+                });
+                routePath.setMap(map);
+            });
+        }
+
+        function selectRoute(index) {
+            document.getElementById('route_index').value = index;
+            document.getElementById('route_form').submit();
+        }
+    </script>
+</head>
+<body class="bg-gray-100" onload="initMap()">
+    <header class="bg-white shadow-md py-4">
+        <div class="container mx-auto px-4">
+            <h1 class="text-xl font-bold text-blue-500">ChargeRoute</h1>
+        </div>
+    </header>
+    <main class="py-12">
+        <div class="container mx-auto text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Select Your Route</h2>
+            <div id="map" class="w-full h-96 bg-gray-200 rounded-lg shadow-lg mb-8"></div>
+            <form id="route_form" action="/select_route" method="POST" class="space-y-4">
+                <input type="hidden" id="route_index" name="route_index">
+                {% for route in routes %}
+                <div class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                    <h3 class="font-bold text-lg">Route {{ loop.index }}</h3>
+                    <p class="text-sm text-gray-600 mt-2">Distance: {{ (route.distance / 1000) | round(2) }} km</p>
+                    <p class="text-sm text-gray-600 mt-1">Duration: {{ (route.duration / 60) | round(2) }} minutes</p>
+                    <button type="button" onclick="selectRoute({{ loop.index0 }})" class="mt-3 inline-block bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        Select This Route
+                    </button>
+                </div>
+                {% endfor %}
+                {% for route in routes %}
+                <input type="hidden" name="routes[]" value="{{ route | tojson }}">
+                {% endfor %}
+            </form>
+        </div>
+    </main>
+</body>
+</html>
