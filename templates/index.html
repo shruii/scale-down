@@ -3,38 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChargeRoute</title>
+    <title>ChargeRoute - EV Route Planner</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places"></script>
-    <script>
-        function initAutocomplete() {
-            const fromInput = document.getElementById("from");
-            const toInput = document.getElementById("to");
-            new google.maps.places.Autocomplete(fromInput);
-            new google.maps.places.Autocomplete(toInput);
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+    <style>
+        .gradient-background {
+            background: linear-gradient(135deg, #4F46E5 0%, #10B981 100%);
         }
-    </script>
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
 </head>
-<body class="bg-gray-100" onload="initAutocomplete()">
-    <header class="bg-white shadow-md py-4">
-        <div class="container mx-auto px-4">
-            <h1 class="text-xl font-bold text-blue-500">ChargeRoute</h1>
-        </div>
-    </header>
-    <main class="py-12">
-        <div class="container mx-auto text-center">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Plan Your EV Journey</h2>
-            <form action="/search" method="POST" class="space-y-4 max-w-md mx-auto">
-                <input type="text" id="from" name="from" placeholder="From" class="w-full p-3 border rounded" required>
-                <input type="text" id="to" name="to" placeholder="To" class="w-full p-3 border rounded" required>
-                <select name="vehicle_model" class="w-full p-3 border rounded" required>
-                    <option value="Model X">Model X</option>
-                    <option value="Model Y">Model Y</option>
-                    <option value="Tata Nexon">Tata Nexon</option>
-                </select>
-                <button type="submit" class="bg-blue-500 text-white py-2 px-6 rounded-lg hover:bg-blue-600">Find Route</button>
-            </form>
-        </div>
-    </main>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-charging-station text-green-500 text-2xl"></i>
+<h1 class="text-2xl font-bold text-gray-800">ChargeRoute</h1>
+             </div>
+             <nav class="flex items-center space-x-6">
+                <a href="/" class="text-gray-700 hover:text-green-500">Home</a>
+                <a href="/saved_trips" class="text-gray-700 hover:text-green-500">Saved Trips</a>
+                {% if current_user.is_authenticated %}
+                <a href="/profile" class="text-gray-700 hover:text-green-500">Profile</a>
+                <a href="/logout" class="text-gray-700 hover:text-green-500">Logout</a>
+                {% else %}
+                <a href="/login" class="text-gray-700 hover:text-green-500">Login</a>
+                <a href="/register" class="text-gray-700 hover:text-green-500">Register</a>
+                {% endif %}
+             </nav>
+         </div>
+     </header>
+
+     <main class="flex-grow">
+        <!-- Hero Section -->
+        <section class="gradient-background text-white py-16">
+            <div class="container mx-auto px-4 flex flex-col md:flex-row items-center">
+                <div class="md:w-1/2 mb-8 md:mb-0">
+                    <h1 class="text-4xl md:text-5xl font-bold mb-4">Smart EV Route Planning</h1>
+                    <p class="text-xl mb-6">Find the optimal route for your electric vehicle, including charging stops, weather information, and personalized recommendations.</p>
+                    <a href="#search-form" class="bg-white text-indigo-600 font-semibold px-6 py-3 rounded-lg hover:bg-indigo-50 transition duration-300">Plan Your Trip</a>
+                </div>
+                <div class="md:w-1/2 flex justify-center">
+                    <img src="/static/images/ev-illustration.svg" alt="Electric Vehicle" class="w-3/4">
+                </div>
+            </div>
+        </section>
+
+        <!-- Search Form Section -->
+        <section id="search-form" class="py-12 bg-white">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center mb-10">Plan Your Route</h2>
+                <form action="/search" method="POST" class="max-w-4xl mx-auto bg-gray-50 p-6 rounded-lg shadow-md">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- From Location -->
+                        <div class="col-span-1">
+                            <label for="from" class="block text-sm font-medium text-gray-700 mb-1">From</label>
+                            <input type="text" id="from" name="from" placeholder="Starting location" 
+                                   class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                        </div>
+                        
+                        <!-- To Location -->
+                        <div class="col-span-1">
+                            <label for="to" class="block text-sm font-medium text-gray-700 mb-1">To</label>
+                            <input type="text" id="to" name="to" placeholder="Destination" 
+                                   class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                        </div>
+                        
+                        <!-- Vehicle Make -->
+                        <div class="col-span-1">
+                            <label for="vehicle_make" class="block text-sm font-medium text-gray-700 mb-1">Vehicle Make</label>
+                            <select id="vehicle_make" name="vehicle_make" 
+                                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                                <option value="">Select Make</option>
+                                {% for make in vehicle_makes %}
+                                <option value="{{ make }}">{{ make }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Vehicle Model -->
+                        <div class="col-span-1">
+                            <label for="vehicle_model" class="block text-sm font-medium text-gray-700 mb-1">Vehicle Model</label>
+                            <select id="vehicle_model" name="vehicle_model" 
+                                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                                <option value="">Select Model</option>
+                                <!-- Models will be populated via JavaScript -->
+                            </select>
+                        </div>
+                        
+                        <!-- Battery Level -->
+                        <div class="col-span-1">
+                            <label for="battery_level" class="block text-sm font-medium text-gray-700 mb-1">Battery Level (%)</label>
+                            <div class="flex items-center">
+                                <input type="range" id="battery_level" name="battery_level" min="10" max="100" value="80" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <span id="battery_display" class="ml-3 w-12 text-center">80%</span>
+                            </div>
+                        </div>
+                        
+                        <!-- AC Usage -->
+                        <div class="col-span-1">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">AC/Climate Control</label>
+                            <div class="flex space-x-4 mt-2">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="ac_usage" value="off" class="form-radio" checked>
+                                    <span class="ml-2">Off</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="ac_usage" value="on" class="form-radio">
+                                    <span class="ml-2">On</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Average Speed -->
+                        <div class="col-span-1 md:col-span-2">
+                            <label for="avg_speed" class="block text-sm font-medium text-gray-700 mb-1">Average Speed (km/h)</label>
+                            <div class="flex items-center">
+                                <input type="range" id="avg_speed" name="avg_speed" min="50" max="130" value="80" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <span id="speed_display" class="ml-3 w-12 text-center">80</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 flex justify-center">
+                        <button type="submit" class="bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-indigo-700 transition duration-300 shadow-md">
+                            <i class="fas fa-route mr-2"></i>Plan Route
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+        
+        <!-- Features Section -->
+        <section class="py-16 bg-gray-50">
+            <div class="container mx-auto px-4">
+                <h2 class="text-3xl font-bold text-center mb-12">Why Choose ChargeRoute?</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Feature 1 -->
+                    <div class="feature-card bg-white p-6 rounded-lg shadow-md transition duration-300">
+                        <div class="bg-green-100 text-green-600 rounded-full w-14 h-14 flex items-center justify-center mb-4">
+                            <i class="fas fa-charging-station text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-3">Smart Charging Planner</h3>
+                        <p class="text-gray-600">Identifies optimal charging stations along your route based on your vehicle's range and charging capabilities.</p>
+                    </div>
+                    
+                    <!-- Feature 2 -->
+                    <div class="feature-card bg-white p-6 rounded-lg shadow-md transition duration-300">
+                        <div class="bg-indigo-100 text-indigo-600 rounded-full w-14 h-14 flex items-center justify-center mb-4">
+                            <i class="fas fa-cloud-sun text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-3">Real-time Weather Integration</h3>
+                        <p class="text-gray-600">Considers weather conditions that affect your EV's range, helping you plan more accurately.</p>
+                    </div>
+                    
+                    <!-- Feature 3 -->
+                    <div class="feature-card bg-white p-6 rounded-lg shadow-md transition duration-300">
+                        <div class="bg-purple-100 text-purple-600 rounded-full w-14 h-14 flex items-center justify-center mb-4">
+                            <i class="fas fa-save text-2xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold mb-3">Save & Share Routes</h3>
+                        <p class="text-gray-600">Save your favorite routes for quick access or share them with friends and family.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+     </main>
+
+     <footer class="bg-gray-800 text-white py-10">
+         <div class="container mx-auto px-4">
+             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                 <div>
+                     <h4 class="text-xl font-semibold mb-4">ChargeRoute</h4>
+                     <p class="text-gray-400">Smart route planning for your electric vehicle journeys.</p>
+                 </div>
+                 <div>
+                     <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+                     <ul class="space-y-2">
+                         <li><a href="/" class="text-gray-400 hover:text-white">Home</a></li>
+                         <li><a href="/about" class="text-gray-400 hover:text-white">About</a></li>
+                         <li><a href="/contact" class="text-gray-400 hover:text-white">Contact</a></li>
+                     </ul>
+                 </div>
+                 <div>
+                     <h4 class="text-lg font-semibold mb-4">Resources</h4>
+                     <ul class="space-y-2">
+                         <li><a href="/faq" class="text-gray-400 hover:text-white">FAQ</a></li>
+                         <li><a href="/blog" class="text-gray-400 hover:text-white">Blog</a></li>
+                         <li><a href="/support" class="text-gray-400 hover:text-white">Support</a></li>
+                     </ul>
+                 </div>
+                 <div>
+                     <h4 class="text-lg font-semibold mb-4">Connect With Us</h4>
+                     <div class="flex space-x-4 mt-4">
+                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-twitter"></i></a>
+                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-facebook"></i></a>
+                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-instagram"></i></a>
+                         <a href="#" class="text-gray-400 hover:text-white"><i class="fab fa-linkedin"></i></a>
+                     </div>
+                 </div>
+             </div>
+             <div class="border-t border-gray-700 mt-8 pt-8 text-sm text-gray-400 text-center">
+                 &copy; 2025 ChargeRoute. All rights reserved.
+             </div>
+         </div>
+     </footer>
+
+     <script>
+         // Google Maps Places Autocomplete
+         function initPlacesAutocomplete() {
+             const fromInput = document.getElementById('from');
+             const toInput = document.getElementById('to');
+             
+             new google.maps.places.Autocomplete(fromInput);
+             new google.maps.places.Autocomplete(toInput);
+         }
+         
+         // Vehicle model selection based on make
+         document.getElementById('vehicle_make').addEventListener('change', function() {
+             const make = this.value;
+             const modelSelect = document.getElementById('vehicle_model');
+             modelSelect.innerHTML = '<option value="">Select Model</option>';
+             
+             if (make && vehicleData[make]) {
+                 for (const model in vehicleData[make]) {
+                     const option = document.createElement('option');
+                     option.value = model;
+                     option.textContent = model;
+                     modelSelect.appendChild(option);
+                 }
+             }
+         });
+         
+         // Battery level display update
+         document.getElementById('battery_level').addEventListener('input', function() {
+             document.getElementById('battery_display').textContent = this.value + '%';
+         });
+         
+         // Speed display update
+         document.getElementById('avg_speed').addEventListener('input', function() {
+             document.getElementById('speed_display').textContent = this.value;
+         });
+         
+         // Initialize vehicle data
+         const vehicleData = {{ vehicle_data|tojson }};
+         
+         // Initialize Google Maps functionality
+         document.addEventListener('DOMContentLoaded', function() {
+             initPlacesAutocomplete();
+         });
+     </script>
 </body>
 </html>
